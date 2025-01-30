@@ -42,8 +42,20 @@ class SoundPlayer {
     setDynamic(result) { this.dynamic = result; }
     setLocation(x_, y_, z_) { this.pos = [x_, y_, z_]; }
 
+    // Setzt die URL des Sounds und überprüft, ob es eine gültige YouTube- oder SoundCloud-URL ist
     setSoundUrl(result) {
-        this.url = result.replace(/<[^>]*>?/gm, '');
+        this.url = result.replace(/<[^>]*>?/gm, ''); // Entfernt HTML-Tags
+        if (!this.isValidUrl(this.url)) {
+            console.error('Ungültige URL');
+            return;
+        }
+    }
+
+    // Überprüft, ob die URL von YouTube oder SoundCloud stammt
+    isValidUrl(url) {
+        const youtubePattern = /(?:https?:\/\/(?:www\.)?youtube\.com\/(?:[^\/]+\/.*|(?:v|e(?:mbed)?)\/([a-zA-Z0-9_-]+))|youtu\.be\/([a-zA-Z0-9_-]+))/;
+        const soundcloudPattern = /https?:\/\/(www\.)?soundcloud\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+/;
+        return youtubePattern.test(url) || soundcloudPattern.test(url);
     }
 
     setLoop(result) {
@@ -56,7 +68,6 @@ class SoundPlayer {
     }
 
     setMaxVolume(result) { this.max_volume = result; }
-
     setVolume(result) {
         this.volume = result;
         if (this.max_volume == -1) this.max_volume = result;
@@ -85,55 +96,44 @@ class SoundPlayer {
         }
     }
 
-    isValidYoutubeUrl(url) {
-        const regex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.*$/;
-        return regex.test(url);
-    }
-
-    isValidSoundcloudUrl(url) {
-        const regex = /^(https?:\/\/)?(www\.)?soundcloud\.com\/.*$/;
-        return regex.test(url);
-    }
-
     create() {
-        $.post('https://xsound/events', JSON.stringify({
-            type: "onLoading",
-            id: this.getName(),
-        }));
-
-        var soundUrl = this.getUrlSound();
-        var link = getYoutubeUrlId(soundUrl);
-
-        if ((link === "" || !this.isValidYoutubeUrl(soundUrl)) && !this.isValidSoundcloudUrl(soundUrl)) {
+        $.post('https://xsound/events', JSON.stringify(
+            {
+                type: "onLoading",
+                id: this.getName(),
+            }));
+        
+        var link = this.getYoutubeUrlId(this.getUrlSound());
+        if (link === "") {
             this.isYoutube = false;
 
             this.audioPlayer = new Howl({
-                src: [soundUrl],
+                src: [this.getUrlSound()],
                 loop: false,
                 html5: true,
                 autoplay: false,
                 volume: 0.00,
                 format: ['mp3'],
-                onend: function(event) {
+                onend: function (event) {
                     ended(null);
                 },
-                onplay: function() {
+                onplay: function () {
                     isReady("nothing", true);
                 },
             });
-
             $("#" + this.div_id).remove();
-            $("body").append("<div id='" + this.div_id + "' style='display:none'>" + escape(soundUrl) + "</div>");
+            $("body").append("<div id = '" + this.div_id + "' style='display:none'>" + this.getUrlSound() + "</div>")
         } else {
             this.isYoutube = true;
             this.isYoutubeReady(false);
-
             $("#" + this.div_id).remove();
             $("body").append("<div id='" + this.div_id + "'></div>");
-
             this.yPlayer = new YT.Player(this.div_id, {
+
+                startSeconds: Number,
+
                 videoId: link,
-                origin: "https://www.youtube.com",
+                origin: window.location.href,
                 enablejsapi: 1,
                 width: "0",
                 height: "0",
@@ -141,13 +141,13 @@ class SoundPlayer {
                     controls: 0,
                 },
                 events: {
-                    'onReady': (event) => {
+                    'onReady': function (event) {
                         event.target.unMute();
                         event.target.setVolume(0);
                         event.target.playVideo();
                         isReady(event.target.getIframe().id);
                     },
-                    'onStateChange': (event) => {
+                    'onStateChange': function (event) {
                         if (event.data == YT.PlayerState.ENDED) {
                             isLooped(event.target.getIframe().id);
                             ended(event.target.getIframe().id);
@@ -156,6 +156,12 @@ class SoundPlayer {
                 }
             });
         }
+    }
+
+    getYoutubeUrlId(url) {
+        const youtubePattern = /(?:https?:\/\/(?:www\.)?youtube\.com\/(?:[^\/]+\/.*|(?:v|e(?:mbed)?)\/([a-zA-Z0-9_-]+))|youtu\.be\/([a-zA-Z0-9_-]+))/;
+        const match = url.match(youtubePattern);
+        return match ? match[1] || match[2] : "";
     }
 
     destroyYoutubeApi() {
@@ -190,7 +196,7 @@ class SoundPlayer {
         if (distance < 1) {
             distance = distance * 100;
             var far_away = 100 - distance;
-            vol = (this.max_volume / 100) * far_away;
+            vol = (this.max_volume / 100) * far_away;;
             this.setVolume(vol);
             this.isMuted_ = false;
         } else {
