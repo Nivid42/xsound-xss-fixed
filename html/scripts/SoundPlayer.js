@@ -26,7 +26,6 @@ class SoundPlayer
         // Entfernt alle HTML-Tags, um potenziellen schadhaften Code zu eliminieren
         return url.replace(/<[^>]*>/g, '');
     }
-    
 
 	// Neue Methode: Überprüft, ob die URL gültig ist
 	isValidUrl(url) {
@@ -45,7 +44,7 @@ class SoundPlayer
 
 	isAudioYoutubePlayer(){
 	    return this.isYoutube;
-	}y
+	}
 
 	getDistance() { return this.distance;}
 	getLocation() { return this.pos;     }
